@@ -9,7 +9,7 @@
     <style>
         body {
             font-family: 'Inter', sans-serif;
-            touch-action: manipulation; /* Millora la resposta tàctil en mòbils */
+            touch-action: manipulation;
         }
         .card-container {
             perspective: 1000px;
@@ -36,13 +36,13 @@
             border-radius: 0.5rem;
         }
         .card-front {
-            background-color: #6366f1; /* Indigo 500 */
+            background-color: #6366f1;
             color: white;
             font-size: 2.5rem;
         }
         .card-back {
-            background-color: #e0e7ff; /* Indigo 100 */
-            color: #3730a3; /* Indigo 800 */
+            background-color: #e0e7ff;
+            color: #3730a3;
             transform: rotateY(180deg);
             padding: 0.5rem;
             text-align: center;
@@ -51,9 +51,9 @@
             cursor: default;
         }
         .card-container.matched .card-back {
-            background-color: #d1fae5; /* Green-100 */
-            color: #065f46; /* Green-800 */
-            border: 2px solid #10b981; /* Green-500 */
+            background-color: #d1fae5;
+            color: #065f46;
+            border: 2px solid #10b981;
         }
         #game-board {
             display: grid;
@@ -112,7 +112,6 @@
             const playAgainButton = document.getElementById('play-again-button');
             const finalMovesSpan = document.getElementById('final-moves');
 
-            // Llista de parelles: verb conjugat i el seu temps verbal
             const verbPairs = [
                 { conjugation: 'cantava', tense: 'Imperfet' },
                 { conjugation: 'vaig cantar', tense: 'Passat Perifràstic' },
@@ -132,21 +131,13 @@
             let flippedCards = [];
             let matchedPairs = 0;
             let moves = 0;
-            let lockBoard = false; // Bloqueja el tauler mentre es comproven les cartes
+            let lockBoard = false;
 
             function createDeck() {
                 const deck = [];
                 verbPairs.forEach((pair, index) => {
-                    deck.push({
-                        type: 'conjugation',
-                        value: pair.conjugation,
-                        pairId: index
-                    });
-                    deck.push({
-                        type: 'tense',
-                        value: pair.tense,
-                        pairId: index
-                    });
+                    deck.push({ type: 'conjugation', value: pair.conjugation, pairId: index });
+                    deck.push({ type: 'tense', value: pair.tense, pairId: index });
                 });
                 return deck;
             }
@@ -160,7 +151,6 @@
             }
 
             function createBoard() {
-                // Reiniciar valors
                 gameBoard.innerHTML = '';
                 moves = 0;
                 matchedPairs = 0;
@@ -171,11 +161,9 @@
                 const deck = createDeck();
                 cards = shuffle(deck);
 
-                cards.forEach((cardData, index) => {
+                cards.forEach((cardData) => {
                     const cardContainer = document.createElement('div');
                     cardContainer.classList.add('card-container', 'h-28', 'sm:h-32', 'cursor-pointer');
-                    cardContainer.dataset.index = index;
-                    cardContainer.dataset.pairId = cardData.pairId;
                     cardContainer.dataset.type = cardData.type;
                     cardContainer.dataset.value = cardData.value;
 
@@ -194,7 +182,6 @@
                     } else {
                         cardBack.classList.add('text-lg');
                     }
-
 
                     cardInner.appendChild(cardFront);
                     cardInner.appendChild(cardBack);
@@ -235,7 +222,6 @@
             function checkForMatch() {
                 const [card1, card2] = flippedCards;
                 
-                // Assegurar-se que no són dues cartes del mateix tipus (p.ex. dos verbs)
                 if (card1.dataset.type === card2.dataset.type) {
                     unflipCards();
                     return;
@@ -253,14 +239,12 @@
                 const conjugationValue = conjugationCard.dataset.value;
                 const tenseValue = tenseCard.dataset.value;
 
-                // Trobar la parella correcta a la llista original de verbs
                 const correctPair = verbPairs.find(p => p.conjugation === conjugationValue);
 
-                // Comprovar si el temps verbal és el correcte per a la conjugació
                 if (correctPair && correctPair.tense === tenseValue) {
-                    disableCards(); // La parella és correcta
+                    disableCards();
                 } else {
-                    unflipCards(); // La parella és incorrecta
+                    unflipCards();
                 }
             }
             
@@ -273,7 +257,7 @@
                 matchedPairs++;
                 
                 if (matchedPairs === verbPairs.length) {
-                    showWinModal();
+                    setTimeout(showWinModal, 500);
                 }
             }
             
@@ -307,7 +291,6 @@
             resetButton.addEventListener('click', resetGame);
             playAgainButton.addEventListener('click', resetGame);
 
-            // Iniciar el joc per primera vegada
             createBoard();
         });
     </script>

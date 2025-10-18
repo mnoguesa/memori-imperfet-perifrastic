@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="ca">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Joc de Memòria: Verbs Catalans</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            touch-action: manipulation; /* Millora la resposta tàctil en mòbils */
+        }
+        .card-container {
+            perspective: 1000px;
+        }
+        .card-inner {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            transition: transform 0.6s;
+            transform-style: preserve-3d;
+        }
+        .card-container.flipped .card-inner {
+            transform: rotateY(180deg);
+        }
+        .card-face {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            -webkit-backface-visibility: hidden;
+            backface-visibility: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 0.5rem;
+        }
+        .card-front {
+            background-color: #6366f1; /* Indigo 500 */
+            color: white;
+            font-size: 2.5rem;
+        }
+        .card-back {
+            background-color: #e0e7ff; /* Indigo 100 */
+            color: #3730a3; /* Indigo 800 */
+            transform: rotateY(180deg);
+            padding: 0.5rem;
+            text-align: center;
+        }
+        .card-container.matched {
+            cursor: default;
+        }
+        .card-container.matched .card-back {
+            background-color: #d1fae5; /* Green-100 */
+            color: #065f46; /* Green-800 */
+            border: 2px solid #10b981; /* Green-500 */
+        }
+        #game-board {
+            display: grid;
+            gap: 1rem;
+            grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+        }
+        @media (min-width: 640px) {
+            #game-board {
+                grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+            }
+        }
+    </style>
+</head>
+<body class="bg-indigo-50 text-gray-800 flex flex-col items-center justify-center min-h-screen p-4">
+
+    <div class="w-full max-w-4xl mx-auto">
+        <header class="text-center mb-6">
+            <h1 class="text-3xl sm:text-4xl font-bold text-indigo-800">Memori de verbs</h1>
+            <p class="text-indigo-600 mt-2">Relaciona el verb conjugat amb el seu temps verbal.</p>
+        </header>
+
+        <main id="game-container" class="bg-white p-4 sm:p-6 rounded-xl shadow-lg">
+            <div id="game-board" class="mb-6">
+                <!-- Les cartes del joc es generaran aquí amb JavaScript -->
+            </div>
+            <div class="flex flex-col sm:flex-row items-center justify-between">
+                <div id="status-panel" class="text-lg font-semibold text-indigo-700 mb-4 sm:mb-0">
+                    Moviments: <span id="moves-count" class="font-bold">0</span>
+                </div>
+                <button id="reset-button" class="w-full sm:w-auto bg-indigo-600 text-white font-bold py-2 px-6 rounded-lg hover:bg-indigo-700 transition-colors duration-300 shadow-md">
+                    Tornar a començar
+                </button>
+            </div>
+        </main>
+    </div>
+
+    <!-- Modal de "Partida Guanyada" -->
+    <div id="win-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center p-4">
+        <div class="bg-white rounded-xl shadow-2xl p-8 text-center max-w-sm mx-auto transform transition-all scale-95 opacity-0">
+            <h2 class="text-3xl font-bold text-green-600 mb-4">Felicitats!</h2>
+            <p class="text-gray-700 mb-2">Has completat el joc amb èxit.</p>
+            <p id="final-moves" class="text-gray-700 mb-6 font-semibold">Total de moviments: 0</p>
+            <button id="play-again-button" class="w-full bg-green-500 text-white font-bold py-3 px-6 rounded-lg hover:bg-green-600 transition-colors duration-300">
+                Jugar de nou
+            </button>
+        </div>
+    </div>
+
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const gameBoard = document.getElementById('game-board');
+            const movesCountSpan = document.getElementById('moves-count');
+            const resetButton = document.getElementById('reset-button');
+            const winModal = document.getElementById('win-modal');
+            const playAgainButton = document.getElementById('play-again-button');
+            const finalMovesSpan = document.getElementById('final-moves');
+
+            // Llista de parelles: verb conjugat i el seu temps verbal
+            const verbPairs = [
+                { conjugation: 'cantava', tense: 'Imperfet' },
+                { conjugation: 'vaig cantar', tense: 'Passat Perifràstic' },
+                { conjugation: 'parlaves', tense: 'Imperfet' },
+                { conjugation: 'vas parlar', tense: 'Passat Perifràstic' },
+                { conjugation: 'jugava', tense: 'Imperfet' },
+                { conjugation: 'va jugar', tense: 'Passat Perifràstic' },
+                { conjugation: 'perdíem', tense: 'Imperfet' },
+                { conjugation: 'vam perdre', tense: 'Passat Perifràstic' },
+                { conjugation: 'veníeu', tense: 'Imperfet' },
+                { conjugation: 'vau vendre', tense: 'Passat Perifràstic' },
+                { conjugation: 'sentien', tense: 'Imperfet' },
+                { conjugation: 'van sentir', tense: 'Passat Perifràstic' },
+            ];
+
+            let cards = [];
+            let flippedCards = [];
+            let matchedPairs = 0;
+            let moves = 0;
+            let lockBoard = false; // Bloqueja el tauler mentre es comproven les cartes
+
+            function createDeck() {
+                const deck = [];
+                verbPairs.forEach((pair, index) => {
+                    deck.push({
+                        type: 'conjugation',
+                        value: pair.conjugation,
+                        pairId: index
+                    });
+                    deck.push({
+                        type: 'tense',
+                        value: pair.tense,
+                        pairId: index
+                    });
+                });
+                return deck;
+            }
+
+            function shuffle(array) {
+                for (let i = array.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [array[i], array[j]] = [array[j], array[i]];
+                }
+                return array;
+            }
+
+            function createBoard() {
+                // Reiniciar valors
+                gameBoard.innerHTML = '';
+                moves = 0;
+                matchedPairs = 0;
+                flippedCards = [];
+                lockBoard = false;
+                movesCountSpan.textContent = '0';
+                
+                const deck = createDeck();
+                cards = shuffle(deck);
+
+                cards.forEach((cardData, index) => {
+                    const cardContainer = document.createElement('div');
+                    cardContainer.classList.add('card-container', 'h-28', 'sm:h-32', 'cursor-pointer');
+                    cardContainer.dataset.index = index;
+                    cardContainer.dataset.pairId = cardData.pairId;
+                    cardContainer.dataset.type = cardData.type;
+                    cardContainer.dataset.value = cardData.value;
+
+                    const cardInner = document.createElement('div');
+                    cardInner.classList.add('card-inner');
+
+                    const cardFront = document.createElement('div');
+                    cardFront.classList.add('card-face', 'card-front');
+                    cardFront.textContent = '?';
+
+                    const cardBack = document.createElement('div');
+                    cardBack.classList.add('card-face', 'card-back', 'font-semibold');
+                    cardBack.textContent = cardData.value;
+                    if (cardData.type === 'tense') {
+                        cardBack.classList.add('text-xl');
+                    } else {
+                        cardBack.classList.add('text-lg');
+                    }
+
+
+                    cardInner.appendChild(cardFront);
+                    cardInner.appendChild(cardBack);
+                    cardContainer.appendChild(cardInner);
+                    
+                    cardContainer.addEventListener('click', handleCardClick);
+                    gameBoard.appendChild(cardContainer);
+                });
+            }
+
+            function handleCardClick(event) {
+                if (lockBoard) return;
+                const clickedCard = event.currentTarget;
+                if (clickedCard.classList.contains('flipped') || clickedCard.classList.contains('matched')) return;
+
+                flipCard(clickedCard);
+                flippedCards.push(clickedCard);
+
+                if (flippedCards.length === 2) {
+                    incrementMoves();
+                    checkForMatch();
+                }
+            }
+
+            function flipCard(card) {
+                card.classList.add('flipped');
+            }
+            
+            function unflipCards() {
+                lockBoard = true;
+                setTimeout(() => {
+                    flippedCards.forEach(card => card.classList.remove('flipped'));
+                    flippedCards = [];
+                    lockBoard = false;
+                }, 1200);
+            }
+
+            function checkForMatch() {
+                const [card1, card2] = flippedCards;
+                
+                // Assegurar-se que no són dues cartes del mateix tipus (p.ex. dos verbs)
+                if (card1.dataset.type === card2.dataset.type) {
+                    unflipCards();
+                    return;
+                }
+
+                let conjugationCard, tenseCard;
+                if (card1.dataset.type === 'conjugation') {
+                    conjugationCard = card1;
+                    tenseCard = card2;
+                } else {
+                    conjugationCard = card2;
+                    tenseCard = card1;
+                }
+
+                const conjugationValue = conjugationCard.dataset.value;
+                const tenseValue = tenseCard.dataset.value;
+
+                // Trobar la parella correcta a la llista original de verbs
+                const correctPair = verbPairs.find(p => p.conjugation === conjugationValue);
+
+                // Comprovar si el temps verbal és el correcte per a la conjugació
+                if (correctPair && correctPair.tense === tenseValue) {
+                    disableCards(); // La parella és correcta
+                } else {
+                    unflipCards(); // La parella és incorrecta
+                }
+            }
+            
+            function disableCards() {
+                flippedCards.forEach(card => {
+                    card.classList.add('matched');
+                    card.removeEventListener('click', handleCardClick);
+                });
+                flippedCards = [];
+                matchedPairs++;
+                
+                if (matchedPairs === verbPairs.length) {
+                    showWinModal();
+                }
+            }
+            
+            function incrementMoves() {
+                moves++;
+                movesCountSpan.textContent = moves;
+            }
+
+            function showWinModal() {
+                finalMovesSpan.textContent = `Total de moviments: ${moves}`;
+                winModal.classList.remove('hidden');
+                winModal.classList.add('flex');
+                setTimeout(() => {
+                    winModal.querySelector('div').classList.remove('scale-95', 'opacity-0');
+                }, 10);
+            }
+
+            function hideWinModal() {
+                winModal.querySelector('div').classList.add('scale-95', 'opacity-0');
+                setTimeout(() => {
+                    winModal.classList.add('hidden');
+                    winModal.classList.remove('flex');
+                }, 300);
+            }
+            
+            function resetGame() {
+                hideWinModal();
+                createBoard();
+            }
+
+            resetButton.addEventListener('click', resetGame);
+            playAgainButton.addEventListener('click', resetGame);
+
+            // Iniciar el joc per primera vegada
+            createBoard();
+        });
+    </script>
+</body>
+</html>
